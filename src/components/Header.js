@@ -13,19 +13,8 @@ const Header = () => {
     <header>
       <Container type="content">
         <p>
-          <Link to="/">{companyName}</Link>
+          <Link to="/">California Democratic Council Club Map</Link>
         </p>
-        <ul>
-          <li>
-            <Link to="/about/">About</Link>
-          </li>
-          <li>
-            <a href={companyUrl}>
-              <span className="visually-hidden">Github</span>
-              <FaGithub />
-            </a>
-          </li>
-        </ul>
       </Container>
     </header>
   );

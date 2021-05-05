@@ -1,82 +1,129 @@
 import React, { useRef, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import L from "leaflet";
-import { Marker, useMap } from "react-leaflet";
+import { useMap } from "react-leaflet";
+import axios from "axios";
 
 import { promiseToFlyTo, getCurrentLocation } from "lib/map";
 
-import Layout from "components/Layout";
-import Container from "components/Container";
-import Map from "components/Map";
-import Snippet from "components/Snippet";
+import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
+import "../../node_modules/leaflet-geosearch/dist/geosearch.css";
 
-import gatsby_astronaut from "assets/images/gatsby-astronaut.jpg";
+import Layout from "components/Layout";
+import Map from "components/Map";
 
 const LOCATION = {
-  lat: 38.9072,
-  lng: -77.0369,
+  lat: 37.7783,
+  lng: -119.4179,
 };
 const CENTER = [LOCATION.lat, LOCATION.lng];
-const DEFAULT_ZOOM = 2;
-const ZOOM = 10;
+const ZOOM = 6;
 
-const timeToZoom = 2000;
-const timeToOpenPopupAfterZoom = 4000;
-const timeToUpdatePopupAfterZoom = timeToOpenPopupAfterZoom + 3000;
-
-const popupContentHello = `<p>Hello 👋</p>`;
-const popupContentGatsby = `
-  <div class="popup-gatsby">
-    <div class="popup-gatsby-image">
-      <img class="gatsby-astronaut" src=${gatsby_astronaut} />
-    </div>
-    <div class="popup-gatsby-content">
-      <h1>Gatsby Leaflet Starter</h1>
-      <p>Welcome to your new Gatsby site. Now go build something great!</p>
-    </div>
-  </div>
-`;
-
-/**
- * MapEffect
- * @description This is an example of creating an effect used to zoom in and set a popup on load
- */
-
-const MapEffect = ({ markerRef }) => {
+const MapEffect = () => {
   const map = useMap();
 
-  useEffect(() => {
-    if (!markerRef.current || !map) return;
+  const searchControl = new GeoSearchControl({
+    provider: new OpenStreetMapProvider(),
+    position: "topleft",
+    style: "bar",
+  }).addTo(map);
 
+  useEffect(() => {
     (async function run() {
-      const popup = L.popup({
-        maxWidth: 800,
-      });
+      async function fetchData() {
+        let request;
+
+        try {
+          request = await axios.get("https://db.caldc.org/affiliated-clubs");
+        } catch (e) {
+          console.log(`Failed to fetch clubs: ${e.message}`, e);
+          return;
+        }
+
+        const { data = [] } = request;
+        const hasData = Array.isArray(data) && data.length > 0;
+
+        if (!hasData) return;
+
+        const geoJson = {
+          type: "FeatureCollection",
+          features: data.map((club = {}) => {
+            const {
+              Latitude: lat,
+              Longitude: lng,
+              Name,
+              Email,
+              Street,
+              City,
+              State,
+              ZIP,
+              Country,
+            } = club;
+            return {
+              type: "Feature",
+              properties: {
+                Name,
+                Email,
+                Street,
+                City,
+                State,
+                ZIP,
+                Country,
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [lng, lat],
+              },
+            };
+          }),
+        };
+
+        const geoJsonLayers = new L.GeoJSON(geoJson, {
+          pointToLayer: (feature = {}, latlng) => {
+            const { properties = {} } = feature;
+
+            const { Name, Email, Street, City, State } = properties;
+
+            const html = `
+              <span class="icon-marker">
+                <span class="icon-marker-tooltip">
+                  <h2>${Name}</h2>
+                  <ul>
+                    <li><strong>Street:</strong> ${Street}</li>
+                    <li><strong>City:</strong> ${City}</li>
+                    <li><strong>State:</strong> ${State}</li>
+                    <li><strong>Email:</strong> ${Email}</li>
+                  </ul>
+                </span>
+              </span>
+            `;
+
+            return L.marker(latlng, {
+              icon: L.divIcon({
+                className: "icon",
+                html,
+              }),
+              riseOnHover: true,
+            });
+          },
+        });
+
+        geoJsonLayers.addTo(map);
+
+        return;
+      }
+      fetchData();
 
       const location = await getCurrentLocation().catch(() => LOCATION);
-
-      const { current: marker } = markerRef || {};
-
-      marker.setLatLng(location);
-      popup.setLatLng(location);
-      popup.setContent(popupContentHello);
 
       setTimeout(async () => {
         await promiseToFlyTo(map, {
           zoom: ZOOM,
           center: location,
         });
-
-        marker.bindPopup(popup);
-
-        setTimeout(() => marker.openPopup(), timeToOpenPopupAfterZoom);
-        setTimeout(
-          () => marker.setPopupContent(popupContentGatsby),
-          timeToUpdatePopupAfterZoom
-        );
-      }, timeToZoom);
+      });
     })();
-  }, [map, markerRef]);
+  }, [map]);
 
   return null;
 };
@@ -87,7 +134,7 @@ const IndexPage = () => {
   const mapSettings = {
     center: CENTER,
     defaultBaseMap: "OpenStreetMap",
-    zoom: DEFAULT_ZOOM,
+    zoom: ZOOM,
   };
 
   return (
@@ -98,20 +145,7 @@ const IndexPage = () => {
 
       <Map {...mapSettings}>
         <MapEffect markerRef={markerRef} />
-        <Marker ref={markerRef} position={CENTER} />
       </Map>
-
-      <Container type="content" className="text-center home-start">
-        <h2>Still Getting Started?</h2>
-        <p>Run the following in your terminal!</p>
-        <Snippet>
-          gatsby new [directory]
-          https://github.com/colbyfayock/gatsby-starter-leaflet
-        </Snippet>
-        <p className="note">
-          Note: Gatsby CLI required globally for the above command
-        </p>
-      </Container>
     </Layout>
   );
 };

@@ -7,8 +7,6 @@ export default function useSiteMetadata() {
         siteMetadata {
           authorName
           authorUrl
-          companyName
-          companyUrl
           siteDescription
         }
       }

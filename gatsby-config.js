@@ -3,10 +3,8 @@ const config = require("./package.json");
 const { title, description, author, repository, homepage } = config;
 
 const siteMetadata = {
-  companyName: title,
-  companyUrl: repository.url,
-  authorName: author.name,
-  authorUrl: author.url,
+  authorName: "California Democratic Council",
+  authorUrl: "https://caldc.org",
   siteUrl: homepage,
   siteDescription: description,
 };
